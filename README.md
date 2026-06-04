@@ -100,7 +100,7 @@ skins.1=dynamic
 player.1=true
 ```
 
-!!! For pack creators, add a skin file as a fallback/placeholder. The mod needs that for it to work. !!!
+> **Note:** !!! For pack creators, add a skin file as a fallback/placeholder. The mod needs that for it to work. !!!
 
 In your `armor_stand.properties` (CEM model selector), use `name.X=ipattern:*$*` to trigger the matching CEM model whenever the entity name contains a `$` token:
 
