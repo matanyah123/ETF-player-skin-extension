@@ -1,0 +1,11 @@
+{
+	"required": false,
+	"package": "net.matanyah.pse.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"EMFAnimationContextMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}
