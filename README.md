@@ -2,6 +2,8 @@
 
 **pse-etf** is a Fabric client-side mod for Minecraft 26.1 that lets resource pack makers display real player skins dynamically on CEM model parts — such as mannequin armor stands — by embedding a player name token in the entity's custom name.
 
+![Example banner](https://cdn.modrinth.com/data/QK0j571t/images/e0f4feeb8253025c7848b29255e138c759059e94.png)
+
 ---
 
 ## How it works
