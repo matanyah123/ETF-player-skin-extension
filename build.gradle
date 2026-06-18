@@ -6,6 +6,8 @@ plugins {
 version = project.mod_version
 group = project.maven_group
 
+def oneBlockModsDir = file("/Users/matanyah/Documents/curseforge/Instances/OneBlock/mods")
+
 repositories {
 	// Add repositories to retrieve artifacts from in here.
 	// You should only use this when depending on other mods because
@@ -54,6 +56,18 @@ jar {
 	from("LICENSE") {
 		rename { "${it}_$projectName"}
 	}
+}
+
+tasks.register("installToOneBlockMods", Copy) {
+	dependsOn tasks.named("assemble")
+	from(layout.buildDirectory.dir("libs")) {
+		include("${project.name}-${project.version}.jar")
+	}
+	into(oneBlockModsDir)
+}
+
+tasks.named("build") {
+	finalizedBy(tasks.named("installToOneBlockMods"))
 }
 
 // configure the maven publication

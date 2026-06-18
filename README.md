@@ -1,6 +1,6 @@
 # Player Skin Extension for ETF
 
-**pse-etf** is a Fabric client-side mod for Minecraft 26.1 that lets resource pack makers display real player skins dynamically on CEM model parts — such as mannequin armor stands — by embedding a player name token in the entity's custom name.
+**pse-etf** is a Fabric client-side mod for Minecraft 26.1 that lets resource pack makers display real player assets dynamically on CEM model parts — including skins, capes, and elytra textures — by embedding a player name token in the entity's custom name.
 
 ![Example banner](https://cdn.modrinth.com/data/QK0j571t/images/e0f4feeb8253025c7848b29255e138c759059e94.png)
 
@@ -16,7 +16,9 @@ $Username$
 
 For example: `Nightpack$Notch$` or just `$Steve$`.
 
-The mod reads the token, fetches that player's skin from Mojang, and replaces the designated placeholder texture on the CEM model with the real skin — all at render time, with no commands or data packs required.
+The mod reads the token, fetches that player's profile from Mojang, and replaces the designated placeholder texture on the CEM model with the selected player asset at render time — all with no commands or data packs required.
+
+ETF/OptiFine-style random texture rules still decide which texture variant is selected. This mod only replaces the contents of the selected texture when that selected variant explicitly opts into dynamic player asset resolution.
 
 The name tag displayed in-game automatically strips the token, showing only the remainder (e.g. `Nightpack` for `Nightpack$Notch$`).
 
@@ -28,7 +30,7 @@ The mod only replaces textures that are **explicitly opted in** via a properties
 
 ### 1. CEM model
 
-In your `.jem` file, set the `"texture"` field on the submodel that should show the player skin:
+In your `.jem` file, set the `"texture"` field on the submodel that should show the player asset:
 
 ```json
 {
@@ -39,7 +41,7 @@ In your `.jem` file, set the `"texture"` field on the submodel that should show 
 }
 ```
 
-The texture file (`player.png`) does not need to exist — it is just a placeholder identifier.
+The texture file does not need to be named `player.png`. Any basename works. The file can be a real fallback texture, a transparent texture, or just a placeholder identifier used by your pack.
 
 ### 2. Properties file
 
@@ -49,15 +51,80 @@ Create a `.properties` file in the same folder as the texture placeholder, with 
 
 ```properties
 skins.1=dynamic
-player.1=true
+player_asset.1=skin
 ```
 
 | Key | Value | Meaning |
 |-----|-------|---------|
-| `skins.1` | `dynamic` | This skin slot uses dynamic player skin lookup |
-| `player.1` | `true` | Enables player-name-based resolution for this slot |
+| `skins.1` | `dynamic` | This slot uses dynamic player asset lookup |
+| `player_asset.1` | `skin` / `cape` / `elytra` | Chooses which player asset to inject into this slot |
 
-Both keys are required. Without them the mod leaves the texture untouched.
+Both keys are required for the new format. Without them the mod leaves the texture untouched.
+
+Legacy compatibility:
+
+```properties
+skins.1=dynamic
+player.1=true
+```
+
+`player.1=true` is still supported and behaves exactly like `player_asset.1=skin`.
+
+### 3. Optional ETF variant rules
+
+You can combine dynamic player asset lookup with normal ETF random/name rules in the same texture properties file.
+
+Dynamic skin with a clear override:
+
+```properties
+skins.1=dynamic
+player_asset.1=skin
+
+skins.2=2
+name.2=ipattern:*-clear*
+```
+
+With matching files like:
+
+```text
+player.png
+player.properties
+player2.png
+```
+
+or:
+
+```text
+LimbsRegular.png
+LimbsRegular.properties
+LimbsRegular2.png
+```
+
+Behavior:
+
+- `$Matanyah$` uses Matanyah's fetched player skin.
+- `$Matanyah$ -clear` uses `player2.png` or `LimbsRegular2.png`.
+- `NormalName -clear` uses `player2.png` or `LimbsRegular2.png`.
+- `NormalName` uses the base selected texture with no dynamic injection.
+
+Dynamic cape with a hidden flag:
+
+```properties
+skins.1=1
+name.1=ipattern:*
+
+skins.2=dynamic
+player_asset.2=cape
+name.2=ipattern:*-cape*
+```
+
+Behavior:
+
+- `$Matanyah$ builder` uses the base fallback cape texture.
+- `$Matanyah$ builder -cape` injects Matanyah's real cape texture if that player has one.
+- If the player has no cape, the selected fallback texture is kept.
+
+The same pattern works with `player_asset.X=elytra`.
 
 ### Directory structure example
 
@@ -71,7 +138,7 @@ assets/
             └── entity/
                 └── armorstand/
                     ├── player.png       ← placeholder (can be any 1×1 image or omitted)
-                    └── player.properties← opts in to dynamic skin replacement
+                    └── player.properties← opts in to dynamic player asset replacement
 ```
 
 `etf/random/entity/` paths are also supported.
@@ -85,10 +152,34 @@ assets/
 | `$Steve$` | Displays Steve's skin; name tag hidden |
 | `Nightpack$Notch$` | Displays Notch's skin; name tag shows `Nightpack` |
 | `My Stand $Alex$` | Displays Alex's skin; name tag shows `My Stand` |
+| `$Steve$ builder -slim -cape` | Displays Steve's selected player assets; name tag shows `Steve builder` |
 
 - Username must be **3–16 characters**, letters, digits, or underscores (`A-Za-z0-9_`)
 - The token must be surrounded by `$` on both sides
 - Case-sensitive for skin lookup (matches Mojang's username exactly)
+
+### Hidden flags
+
+Any complete word that starts with `-` is treated as a hidden flag.
+
+- Hidden flags are removed from the displayed name tag.
+- Hidden flags remain available internally for future mod features.
+- Multiple flags are supported.
+- Flags are normalized case-insensitively for internal matching.
+
+Examples:
+
+```text
+$Matanyah$ swims -slim
+```
+
+Displays as `Matanyah swims`, with detected flags `["slim"]`.
+
+```text
+$Matanyah$ -swims -slim
+```
+
+Displays as `Matanyah`, with detected flags `["swims", "slim"]`.
 
 ---
 
@@ -97,9 +188,9 @@ assets/
 You can pair this with ETF's CEM model selection so the custom model only activates when the name contains a token:
 
 ```properties
-# Enable dynamic player skin replacement
+# Enable dynamic player asset replacement
 skins.1=dynamic
-player.1=true
+player_asset.1=skin
 ```
 
 > **Note:** !!! For pack creators, add a skin file as a fallback/placeholder. The mod needs that for it to work. !!!
@@ -133,13 +224,22 @@ name.1=ipattern:*$*
 The mod is client-side only. The entity just needs a custom name with the `$Username$` token — no server-side mod required.
 
 **What if the skin is still loading?**  
-A loading placeholder is shown until the skin is fetched from Mojang. Skins are cached for the session.
+A loading placeholder is shown until the skin is fetched from Mojang. Player assets are cached for the session.
 
 **What if the username doesn't exist?**  
-The default Steve/Alex skin is shown as a fallback.
+The default Steve/Alex skin is shown as a fallback for skin slots.
+
+**What happens if a player has no cape or elytra texture?**  
+The selected ETF/CEM fallback texture stays in place for `cape` and `elytra` slots.
 
 **Does it replace the entity's normal texture?**  
-No. Only textures registered via `skins.X=dynamic` + `player.X=true` in a properties file are affected. All other entity textures are left completely untouched.
+No. ETF/EMF still decide which texture variant is selected. This mod only swaps in a player asset when the selected variant is registered with `skins.X=dynamic` plus `player_asset.X=...` or legacy `player.X=true`.
+
+**Is dynamic player asset support hardcoded to `player.png`?**  
+No. Any texture basename can opt in, as long as the `.properties` file sits next to it and marks the desired variant as dynamic.
+
+**Does `-cape` automatically render a vanilla cape layer?**  
+No. Hidden flags stay available for your pack and for future mod features, but this mod currently only swaps the texture content of the selected CEM/ETF texture slot.
 
 **Can I use this for entities other than armor stands?**  
 Yes — any entity type that has a CEM model and a properly configured properties file will work.

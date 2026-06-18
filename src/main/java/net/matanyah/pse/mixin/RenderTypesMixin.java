@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-@Mixin(RenderTypes.class)
+@Mixin(value = RenderTypes.class, priority = 900)
 public abstract class RenderTypesMixin {
 	@SuppressWarnings("UnresolvedMixinReference")
 	@ModifyVariable(method = {

@@ -23,35 +23,41 @@ public abstract class LivingEntityRendererMixin {
 	private void pse_etf$extractPlayerSkinToken(LivingEntity entity, LivingEntityRenderState state, float tickDelta, CallbackInfo ci) {
 		PlayerSkinTokenState tokenState = (PlayerSkinTokenState) state;
 		tokenState.pse_etf$setPlayerSkinToken(null);
+		tokenState.pse_etf$setPlayerSkinEntity(entity);
+		tokenState.pse_etf$setHiddenFlags(java.util.List.of());
 
 		Component customName = entity.getCustomName();
 		if (customName == null) {
 			return;
 		}
 
-		Optional<PlayerSkinToken> token = PlayerSkinToken.find(customName.getString());
+		String rawName = customName.getString();
+		tokenState.pse_etf$setHiddenFlags(PlayerSkinToken.findHiddenFlags(rawName));
+
+		Optional<PlayerSkinToken> token = PlayerSkinToken.find(rawName);
 		token.ifPresent(value -> {
 			tokenState.pse_etf$setPlayerSkinToken(value);
 			if (state.nameTag != null) {
-				state.nameTag = Component.literal(getDisplayedName(value));
+				state.nameTag = Component.literal(value.displayName());
 			}
 		});
+
+		if (token.isEmpty() && state.nameTag != null) {
+			String displayedName = PlayerSkinToken.stripHiddenFlags(rawName);
+			if (!displayedName.equals(rawName)) {
+				state.nameTag = Component.literal(displayedName);
+			}
+		}
 	}
 
 	@Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("HEAD"))
 	private void pse_etf$beginPlayerSkinRender(LivingEntityRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, CameraRenderState cameraRenderState, CallbackInfo ci) {
-		PlayerSkinRenderContext.set(((PlayerSkinTokenState) state).pse_etf$getPlayerSkinToken());
+		PlayerSkinTokenState tokenState = (PlayerSkinTokenState) state;
+		PlayerSkinRenderContext.set(tokenState.pse_etf$getPlayerSkinToken(), tokenState.pse_etf$getPlayerSkinEntity());
 	}
 
 	@Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("TAIL"))
 	private void pse_etf$endPlayerSkinRender(LivingEntityRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, CameraRenderState cameraRenderState, CallbackInfo ci) {
 		PlayerSkinRenderContext.clear();
-	}
-
-	private static String getDisplayedName(PlayerSkinToken token) {
-		if (token.remainder().isBlank()) {
-			return token.username();
-		}
-		return token.username() + " " + token.remainder();
 	}
 }

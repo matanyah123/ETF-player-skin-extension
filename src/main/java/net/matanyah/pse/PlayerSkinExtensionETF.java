@@ -25,6 +25,7 @@ public class PlayerSkinExtensionETF implements ClientModInitializer {
 					@Override
 					public void onResourceManagerReload(ResourceManager manager) {
 						DynamicSkinTextureRegistry.reload(manager);
+						ETFTextureVariantResolver.clearCache();
 					}
 				}
 		);
