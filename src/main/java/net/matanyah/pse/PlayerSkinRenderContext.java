@@ -8,8 +8,8 @@ public final class PlayerSkinRenderContext {
 
 	private PlayerSkinRenderContext() {}
 
-	public static void set(PlayerSkinToken token, Entity entity) {
-		CURRENT_CONTEXT.set(new Context(token, entity));
+	public static void set(Entity entity) {
+		CURRENT_CONTEXT.set(new Context(entity));
 	}
 
 	public static void clear() {
@@ -22,15 +22,19 @@ public final class PlayerSkinRenderContext {
 		Identifier selectedTexture = resolution.selectedTexture();
 		// ETF remains the source of truth for variant selection; we only swap in the
 		// fetched player asset when the selected variant explicitly opted into it.
-		boolean inject = context != null
-				&& context.token() != null
-				&& resolution.flags().dynamic()
-				&& resolution.flags().assetType() != null;
+		String username = context == null ? null : PlayerNameResolver.resolve(
+				context.entity(),
+				resolution.flags().nameSource(),
+				resolution.flags().nameSlot()
+		).orElse(null);
+		boolean inject = resolution.flags().dynamic()
+				&& resolution.flags().assetType() != null
+				&& username != null;
 		if (context != null && context.entity() != null) {
 			ETFTextureVariantResolver.logResolution(context.entity(), texture, resolution, inject);
 		}
 		if (inject) {
-			return PlayerAssetTextureCache.getTexture(context.token().username(), resolution.flags().assetType(), selectedTexture);
+			return PlayerAssetTextureCache.getTexture(username, resolution.flags().assetType(), selectedTexture);
 		}
 		return selectedTexture;
 	}
@@ -43,5 +47,5 @@ public final class PlayerSkinRenderContext {
 		return ETFTextureVariantResolver.resolveDetailed(texture, context.entity());
 	}
 
-	private record Context(PlayerSkinToken token, Entity entity) {}
+	private record Context(Entity entity) {}
 }

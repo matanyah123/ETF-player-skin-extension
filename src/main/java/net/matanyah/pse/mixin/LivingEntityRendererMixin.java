@@ -3,6 +3,7 @@ package net.matanyah.pse.mixin;
 import net.matanyah.pse.PlayerSkinRenderContext;
 import net.matanyah.pse.PlayerSkinToken;
 import net.matanyah.pse.PlayerSkinTokenState;
+import net.matanyah.pse.RawCustomNameAccess;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -26,7 +27,7 @@ public abstract class LivingEntityRendererMixin {
 		tokenState.pse_etf$setPlayerSkinEntity(entity);
 		tokenState.pse_etf$setHiddenFlags(java.util.List.of());
 
-		Component customName = entity.getCustomName();
+		Component customName = ((RawCustomNameAccess) entity).pse_etf$getRawCustomName();
 		if (customName == null) {
 			return;
 		}
@@ -53,7 +54,7 @@ public abstract class LivingEntityRendererMixin {
 	@Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("HEAD"))
 	private void pse_etf$beginPlayerSkinRender(LivingEntityRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, CameraRenderState cameraRenderState, CallbackInfo ci) {
 		PlayerSkinTokenState tokenState = (PlayerSkinTokenState) state;
-		PlayerSkinRenderContext.set(tokenState.pse_etf$getPlayerSkinToken(), tokenState.pse_etf$getPlayerSkinEntity());
+		PlayerSkinRenderContext.set(tokenState.pse_etf$getPlayerSkinEntity());
 	}
 
 	@Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("TAIL"))

@@ -97,7 +97,7 @@ public final class ETFTextureVariantResolver {
 		}
 
 		PlayerSkinExtensionETF.LOGGER.info(
-				"[PSE] entity='{}' requested='{}' base='{}' selected='{}' variant={} providerFound={} dynamic={} player={} asset={} inject={}",
+				"[PSE] entity='{}' requested='{}' base='{}' selected='{}' variant={} providerFound={} dynamic={} player={} asset={} nameSource={} nameSlot={} inject={}",
 				entity.getCustomName() == null ? entity.getName().getString() : entity.getCustomName().getString(),
 				requestedTexture,
 				resolution.baseTexture(),
@@ -107,6 +107,8 @@ public final class ETFTextureVariantResolver {
 				resolution.flags().dynamic(),
 				resolution.flags().player(),
 				resolution.flags().assetType() == null ? "none" : resolution.flags().assetType().name().toLowerCase(),
+				resolution.flags().nameSource().propertyValue(),
+				resolution.flags().nameSlot(),
 				inject
 		);
 	}
@@ -146,6 +148,7 @@ public final class ETFTextureVariantResolver {
 		Map<Integer, DynamicSkinTextureRegistry.VariantFlags> dynamicRuleFlags = new HashMap<>();
 		boolean hasDynamicRule = false;
 		for (int i = 1; i <= 64; i++) {
+			DynamicSkinTextureRegistry.VariantFlags flags = DynamicSkinTextureRegistry.getVariantFlags(props, i);
 			boolean isDynamic = false;
 			for (String key : List.of("skins", "textures")) {
 				String propertyKey = key + "." + i;
@@ -156,13 +159,8 @@ public final class ETFTextureVariantResolver {
 					hasDynamicRule = true;
 				}
 			}
-			PlayerAssetType assetType = PlayerAssetType.fromPropertyValue(props.getProperty("player_asset." + i));
-			if (assetType == null && Boolean.parseBoolean(props.getProperty("player." + i))) {
-				assetType = PlayerAssetType.SKIN;
-			}
-			boolean isPlayer = assetType != null;
-			if (isDynamic || isPlayer) {
-				dynamicRuleFlags.put(i, new DynamicSkinTextureRegistry.VariantFlags(isDynamic, isPlayer, assetType));
+			if (isDynamic || flags.player()) {
+				dynamicRuleFlags.put(i, flags);
 			}
 		}
 

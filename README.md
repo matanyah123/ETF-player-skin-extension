@@ -54,12 +54,14 @@ skins.1=dynamic
 player_asset.1=skin
 ```
 
-| Key | Value | Meaning |
-|-----|-------|---------|
-| `skins.1` | `dynamic` | This slot uses dynamic player asset lookup |
-| `player_asset.1` | `skin` / `cape` / `elytra` | Chooses which player asset to inject into this slot |
+| Key | Value | Required? | Meaning |
+|-----|-------|-----------|---------|
+| `skins.1` or `textures.1` | `dynamic` | Yes | Opts this slot into dynamic player asset lookup |
+| `player_asset.1` | `skin` / `cape` / `elytra` | Yes* | Chooses which player asset to inject into this slot |
+| `name_source.1` | `token` / `nbt:<field>` / `static:<username>` / `self` | No | Chooses where the username comes from; defaults to `token` |
+| `name_slot.1` | Positive integer | No | Chooses the 1-based token when `name_source` is `token`; defaults to `1` |
 
-Both keys are required for the new format. Without them the mod leaves the texture untouched.
+Dynamic replacement requires `skins.X=dynamic` (or `textures.X=dynamic`) plus an asset selector. The preferred selector is `player_asset.X`; legacy `player.X=true` can be used instead and selects `skin`. `name_source.X` and `name_slot.X` are optional, defaulting to `token` and `1` respectively.
 
 Legacy compatibility:
 
@@ -69,6 +71,48 @@ player.1=true
 ```
 
 `player.1=true` is still supported and behaves exactly like `player_asset.1=skin`.
+
+### Player name sources
+
+By default, a dynamic slot uses the first `$Username$` token in the entity's custom name. The source can be changed independently for each rule:
+
+```properties
+# Default behavior
+name_source.1=token
+
+# Read a username from a top-level string field in the entity's client-visible NBT
+name_source.1=nbt:Owner
+
+# Always load one player's assets
+name_source.1=static:Notch
+
+# Load the local player's assets
+name_source.1=self
+```
+
+The resolved value must be a valid Minecraft username (3-16 letters, digits, or underscores). If the configured source is unavailable or invalid, the selected fallback texture is left unchanged. NBT fields must be present in the entity data available to the client; server-only NBT cannot be read by a client-side resource pack mod.
+
+ETF rule matching is unchanged. Keys such as `name.X`, `nbt.X`, and `biomes.X` still determine whether the rule matches. `name_source.X` is consulted only after ETF selects a dynamic rule.
+
+### Multiple player tokens
+
+Use `name_slot.X` to select a token by its 1-based position in the raw entity name:
+
+```text
+$Matanyah$ $Mogswamp$
+```
+
+```properties
+skins.1=dynamic
+player_asset.1=skin
+name_slot.1=1
+
+skins.2=dynamic
+player_asset.2=skin
+name_slot.2=2
+```
+
+Rule 1 resolves `Matanyah`; rule 2 resolves `Mogswamp`. When omitted, `name_slot.X` defaults to `1`. It is ignored by `nbt`, `static`, and `self` sources.
 
 ### 3. Optional ETF variant rules
 

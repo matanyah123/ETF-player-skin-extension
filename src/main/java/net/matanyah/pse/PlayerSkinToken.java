@@ -34,6 +34,24 @@ public record PlayerSkinToken(String username, String remainder, String displayR
 		));
 	}
 
+	public static Optional<String> findUsername(String name, int slot) {
+		if (slot < 1) {
+			return Optional.empty();
+		}
+
+		Matcher matcher = TOKEN_PATTERN.matcher(name);
+		for (int currentSlot = 1; matcher.find(); currentSlot++) {
+			if (currentSlot == slot) {
+				return Optional.of(matcher.group(1));
+			}
+		}
+		return Optional.empty();
+	}
+
+	public static boolean isValidUsername(String username) {
+		return username != null && TOKEN_PATTERN.matcher("$" + username + "$").matches();
+	}
+
 	public static List<String> findHiddenFlags(String name) {
 		return parseHiddenFlags(name).flags();
 	}

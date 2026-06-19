@@ -68,18 +68,23 @@ public final class DynamicSkinTextureRegistry {
 							props.load(reader);
 
 							for (int i = 1; i <= 64; i++) {
-								boolean isDynamic = "dynamic".equalsIgnoreCase(getSkinValue(props, i));
-								PlayerAssetType assetType = getPlayerAssetType(props, i);
-								boolean isPlayer = assetType != null;
+								VariantFlags ruleFlags = getVariantFlags(props, i);
 								Identifier baseTexture = getBaseTexture(id);
-								if (isDynamic || isPlayer) {
+								if (ruleFlags.dynamic() || ruleFlags.player()) {
 									foundFlags.computeIfAbsent(baseTexture, ignored -> new HashMap<>())
-											.merge(i, new VariantFlags(isDynamic, isPlayer, assetType), VariantFlags::merge);
+											.merge(i, ruleFlags, VariantFlags::merge);
 								}
-								if (isDynamic && isPlayer) {
+								if (ruleFlags.dynamic() && ruleFlags.player()) {
 									Identifier dynamicTexture = i < 2 ? baseTexture : getTextureForVariant(baseTexture, i);
 									found.add(dynamicTexture);
-									PlayerSkinExtensionETF.LOGGER.info("Registered dynamic player asset texture: {} (rule {}, asset={})", dynamicTexture, i, assetType.name().toLowerCase());
+									PlayerSkinExtensionETF.LOGGER.info(
+											"Registered dynamic player asset texture: {} (rule {}, asset={}, name_source={}, name_slot={})",
+											dynamicTexture,
+											i,
+											ruleFlags.assetType().name().toLowerCase(),
+											ruleFlags.nameSource().propertyValue(),
+											ruleFlags.nameSlot()
+									);
 								}
 							}
 						} catch (IOException ignored) {}
@@ -110,6 +115,25 @@ public final class DynamicSkinTextureRegistry {
 		return Boolean.parseBoolean(props.getProperty("player." + index)) ? PlayerAssetType.SKIN : null;
 	}
 
+	static VariantFlags getVariantFlags(Properties props, int index) {
+		boolean isDynamic = "dynamic".equalsIgnoreCase(getSkinValue(props, index));
+		PlayerAssetType assetType = getPlayerAssetType(props, index);
+		PlayerNameSource nameSource = PlayerNameSource.fromPropertyValue(props.getProperty("name_source." + index));
+		int nameSlot = getNameSlot(props.getProperty("name_slot." + index));
+		return new VariantFlags(isDynamic, assetType != null, assetType, nameSource, nameSlot);
+	}
+
+	private static int getNameSlot(String value) {
+		if (value == null) {
+			return 1;
+		}
+		try {
+			return Math.max(1, Integer.parseInt(value.trim()));
+		} catch (NumberFormatException ignored) {
+			return 1;
+		}
+	}
+
 	private static Identifier getBaseTexture(Identifier propertiesId) {
 		String propertiesPath = propertiesId.getPath();
 		String texturePath = propertiesPath.substring(0, propertiesPath.length() - ".properties".length()) + ".png";
@@ -122,12 +146,20 @@ public final class DynamicSkinTextureRegistry {
 		return Map.copyOf(copy);
 	}
 
-	public record VariantFlags(boolean dynamic, boolean player, PlayerAssetType assetType) {
-		public static final VariantFlags NONE = new VariantFlags(false, false, null);
+	public record VariantFlags(
+			boolean dynamic,
+			boolean player,
+			PlayerAssetType assetType,
+			PlayerNameSource nameSource,
+			int nameSlot
+	) {
+		public static final VariantFlags NONE = new VariantFlags(false, false, null, PlayerNameSource.TOKEN, 1);
 
 		private VariantFlags merge(VariantFlags other) {
 			PlayerAssetType mergedAssetType = assetType != null ? assetType : other.assetType;
-			return new VariantFlags(dynamic || other.dynamic, player || other.player, mergedAssetType);
+			PlayerNameSource mergedNameSource = !nameSource.equals(PlayerNameSource.TOKEN) ? nameSource : other.nameSource;
+			int mergedNameSlot = nameSlot != 1 ? nameSlot : other.nameSlot;
+			return new VariantFlags(dynamic || other.dynamic, player || other.player, mergedAssetType, mergedNameSource, mergedNameSlot);
 		}
 	}
 }

@@ -2,7 +2,7 @@ package net.matanyah.pse.mixin;
 
 import net.matanyah.pse.ETFTextureVariantResolver;
 import net.matanyah.pse.PlayerAssetTextureCache;
-import net.matanyah.pse.PlayerSkinToken;
+import net.matanyah.pse.PlayerNameResolver;
 import net.matanyah.pse.PlayerSkinTokenState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -31,9 +31,6 @@ public abstract class EMFAnimationContextMixin {
 		EntityRenderState entityState = getEntityRenderState();
 		if (!(entityState instanceof PlayerSkinTokenState tokenState)) return;
 
-		PlayerSkinToken token = tokenState.pse_etf$getPlayerSkinToken();
-		if (token == null) return;
-
 		Entity entity = tokenState.pse_etf$getPlayerSkinEntity();
 		if (entity == null) return;
 
@@ -41,12 +38,17 @@ public abstract class EMFAnimationContextMixin {
 		// regular model hooks, so resolve the ETF-selected variant directly from the entity.
 		ETFTextureVariantResolver.Resolution resolution = ETFTextureVariantResolver.resolveDetailed(texture, entity);
 		Identifier selectedTexture = resolution.selectedTexture();
-		boolean inject = resolution.flags().dynamic() && resolution.flags().assetType() != null;
+		String username = PlayerNameResolver.resolve(
+				entity,
+				resolution.flags().nameSource(),
+				resolution.flags().nameSlot()
+		).orElse(null);
+		boolean inject = resolution.flags().dynamic() && resolution.flags().assetType() != null && username != null;
 		ETFTextureVariantResolver.logResolution(entity, texture, resolution, inject);
 		if (!inject) return;
 
 		cir.setReturnValue(RenderTypes.entityCutout(
-				PlayerAssetTextureCache.getTexture(token.username(), resolution.flags().assetType(), selectedTexture)
+				PlayerAssetTextureCache.getTexture(username, resolution.flags().assetType(), selectedTexture)
 		));
 	}
 }
