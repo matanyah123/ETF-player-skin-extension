@@ -27,7 +27,9 @@ public abstract class LivingEntityRendererMixin {
 		tokenState.pse_etf$setPlayerSkinEntity(entity);
 		tokenState.pse_etf$setHiddenFlags(java.util.List.of());
 
-		Component customName = ((RawCustomNameAccess) entity).pse_etf$getRawCustomName();
+		Component customName = entity instanceof RawCustomNameAccess access
+				? access.pse_etf$getRawCustomName()
+				: entity.getCustomName();
 		if (customName == null) {
 			return;
 		}
