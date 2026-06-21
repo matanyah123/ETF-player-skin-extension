@@ -16,25 +16,30 @@ public final class PlayerSkinRenderContext {
 		CURRENT_CONTEXT.remove();
 	}
 
+	public static Entity currentEntity() {
+		Context context = CURRENT_CONTEXT.get();
+		return context == null ? null : context.entity();
+	}
+
 	public static Identifier replaceCemPlayerTexture(Identifier texture) {
 		Context context = CURRENT_CONTEXT.get();
 		ETFTextureVariantResolver.Resolution resolution = resolveSelectedTexture(texture);
 		Identifier selectedTexture = resolution.selectedTexture();
 		// ETF remains the source of truth for variant selection; we only swap in the
 		// fetched player asset when the selected variant explicitly opted into it.
-		String username = context == null ? null : PlayerNameResolver.resolve(
+		PlayerIdentity identity = context == null ? null : PlayerNameResolver.resolve(
 				context.entity(),
 				resolution.flags().nameSource(),
 				resolution.flags().nameSlot()
 		).orElse(null);
 		boolean inject = resolution.flags().dynamic()
 				&& resolution.flags().assetType() != null
-				&& username != null;
+				&& identity != null;
 		if (context != null && context.entity() != null) {
 			ETFTextureVariantResolver.logResolution(context.entity(), texture, resolution, inject);
 		}
 		if (inject) {
-			return PlayerAssetTextureCache.getTexture(username, resolution.flags().assetType(), selectedTexture);
+			return PlayerAssetTextureCache.getTexture(identity, resolution.flags().assetType(), selectedTexture);
 		}
 		return selectedTexture;
 	}

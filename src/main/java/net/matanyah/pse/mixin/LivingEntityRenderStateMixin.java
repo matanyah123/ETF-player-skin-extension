@@ -2,6 +2,7 @@ package net.matanyah.pse.mixin;
 
 import net.matanyah.pse.PlayerSkinToken;
 import net.matanyah.pse.PlayerSkinTokenState;
+import net.matanyah.pse.PlayerIdentity;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,6 +16,8 @@ public class LivingEntityRenderStateMixin implements PlayerSkinTokenState {
 	private PlayerSkinToken pse_etf$playerSkinToken;
 	@Unique
 	private Entity pse_etf$playerSkinEntity;
+	@Unique
+	private PlayerIdentity pse_etf$shoulderOwner;
 	@Unique
 	private List<String> pse_etf$hiddenFlags = List.of();
 
@@ -36,6 +39,16 @@ public class LivingEntityRenderStateMixin implements PlayerSkinTokenState {
 	@Override
 	public Entity pse_etf$getPlayerSkinEntity() {
 		return pse_etf$playerSkinEntity;
+	}
+
+	@Override
+	public void pse_etf$setShoulderOwner(PlayerIdentity owner) {
+		this.pse_etf$shoulderOwner = owner;
+	}
+
+	@Override
+	public PlayerIdentity pse_etf$getShoulderOwner() {
+		return pse_etf$shoulderOwner;
 	}
 
 	@Override

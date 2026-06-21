@@ -4,11 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public record PlayerSkinToken(String username, String remainder, String displayRemainder, List<String> flags) {
-	private static final Pattern TOKEN_PATTERN = Pattern.compile("\\$([A-Za-z0-9_]{3,16})\\$");
+	private static final String USERNAME = "[A-Za-z0-9_]{3,16}";
+	private static final String UUID = "(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})";
+	private static final Pattern TOKEN_PATTERN = Pattern.compile("\\$(" + USERNAME + "|" + UUID + ")\\$");
 	private static final Pattern FLAG_PATTERN = Pattern.compile("(?<!\\S)-([^\\s]+)");
 	private static final Pattern MULTI_SPACE_PATTERN = Pattern.compile("\\s+");
 
@@ -34,7 +37,7 @@ public record PlayerSkinToken(String username, String remainder, String displayR
 		));
 	}
 
-	public static Optional<String> findUsername(String name, int slot) {
+	public static Optional<String> findPlayerReference(String name, int slot) {
 		if (slot < 1) {
 			return Optional.empty();
 		}
@@ -48,8 +51,27 @@ public record PlayerSkinToken(String username, String remainder, String displayR
 		return Optional.empty();
 	}
 
+	@Deprecated(forRemoval = false)
+	public static Optional<String> findUsername(String name, int slot) {
+		return findPlayerReference(name, slot);
+	}
+
 	public static boolean isValidUsername(String username) {
-		return username != null && TOKEN_PATTERN.matcher("$" + username + "$").matches();
+		return PlayerIdentity.parse(username).filter(identity -> !identity.isUuid()).isPresent();
+	}
+
+	public static String formatDisplayName(String name, Function<String, Optional<String>> uuidNameResolver) {
+		Matcher matcher = TOKEN_PATTERN.matcher(name);
+		StringBuffer result = new StringBuffer();
+		while (matcher.find()) {
+			PlayerIdentity identity = PlayerIdentity.parse(matcher.group(1)).orElseThrow();
+			String replacement = identity.isUuid()
+					? uuidNameResolver.apply(identity.reference()).orElse("")
+					: identity.reference();
+			matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+		}
+		matcher.appendTail(result);
+		return stripHiddenFlags(result.toString());
 	}
 
 	public static List<String> findHiddenFlags(String name) {

@@ -5,6 +5,7 @@
 	"client": [
 		"LivingEntityRendererMixin",
 		"LivingEntityRenderStateMixin",
+		"ParrotOnShoulderLayerMixin",
 		"ModelMixin",
 		"RenderTypesMixin"
 	],

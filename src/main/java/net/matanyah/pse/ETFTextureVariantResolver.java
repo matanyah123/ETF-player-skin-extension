@@ -50,6 +50,10 @@ public final class ETFTextureVariantResolver {
 	}
 
 	public static Resolution resolveDetailed(Identifier texture, Entity entity) {
+		return resolveDetailed(texture, (Object) entity);
+	}
+
+	public static Resolution resolveDetailed(Identifier texture, Object entityOrState) {
 		if (!initializeReflection()) {
 			return new Resolution(texture, texture, 1, false, DynamicSkinTextureRegistry.VariantFlags.NONE);
 		}
@@ -61,7 +65,7 @@ public final class ETFTextureVariantResolver {
 				return new Resolution(texture, baseTexture, 1, false, DynamicSkinTextureRegistry.VariantFlags.NONE);
 			}
 
-			Object entityState = stateFactory.invoke(null, entity);
+			Object entityState = stateFactory.invoke(null, entityOrState);
 			if (variantProvider instanceof DynamicVariantProvider dynamicVariantProvider) {
 				return dynamicVariantProvider.resolve(texture, baseTexture, entityState);
 			}

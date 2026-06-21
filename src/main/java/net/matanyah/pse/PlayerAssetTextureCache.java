@@ -2,6 +2,7 @@ package net.matanyah.pse;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelType;
@@ -10,7 +11,6 @@ import net.minecraft.world.entity.player.PlayerSkin;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,8 +26,8 @@ public final class PlayerAssetTextureCache {
 
 	private PlayerAssetTextureCache() {}
 
-	public static Identifier getTexture(String username, PlayerAssetType assetType, Identifier fallbackTexture) {
-		AssetRequest request = REQUESTS.computeIfAbsent(cacheKey(username), ignored -> startRequest(username));
+	public static Identifier getTexture(PlayerIdentity identity, PlayerAssetType assetType, Identifier fallbackTexture) {
+		AssetRequest request = getRequest(identity);
 		return switch (request.state) {
 			case LOADING -> assetType == PlayerAssetType.SKIN ? LOADING_TEXTURE : fallbackTexture;
 			case READY -> resolveReadyTexture(request.playerSkin, assetType, fallbackTexture);
@@ -35,12 +35,33 @@ public final class PlayerAssetTextureCache {
 		};
 	}
 
-	public static Optional<PlayerModelType> getModelType(String username) {
-		AssetRequest request = REQUESTS.computeIfAbsent(cacheKey(username), ignored -> startRequest(username));
+	public static Identifier getTexture(String reference, PlayerAssetType assetType, Identifier fallbackTexture) {
+		return PlayerIdentity.parse(reference)
+				.map(identity -> getTexture(identity, assetType, fallbackTexture))
+				.orElse(fallbackTexture);
+	}
+
+	public static Optional<PlayerModelType> getModelType(PlayerIdentity identity) {
+		AssetRequest request = getRequest(identity);
 		if (request.state != RequestState.READY || request.playerSkin == null) {
 			return Optional.empty();
 		}
 		return Optional.of(request.playerSkin.model());
+	}
+
+	public static Optional<PlayerModelType> getModelType(String reference) {
+		return PlayerIdentity.parse(reference).flatMap(PlayerAssetTextureCache::getModelType);
+	}
+
+	public static Optional<String> getResolvedUsername(String reference) {
+		return PlayerIdentity.parse(reference).flatMap(PlayerAssetTextureCache::getResolvedUsername);
+	}
+
+	public static Optional<String> getResolvedUsername(PlayerIdentity identity) {
+		if (!identity.isUuid()) {
+			return Optional.of(identity.reference());
+		}
+		return Optional.ofNullable(getRequest(identity).resolvedUsername);
 	}
 
 	private static Identifier resolveReadyTexture(PlayerSkin playerSkin, PlayerAssetType assetType, Identifier fallbackTexture) {
@@ -53,27 +74,39 @@ public final class PlayerAssetTextureCache {
 				.orElse(assetType == PlayerAssetType.SKIN ? DefaultPlayerSkin.getDefaultTexture() : fallbackTexture);
 	}
 
-	private static AssetRequest startRequest(String username) {
+	private static AssetRequest getRequest(PlayerIdentity identity) {
+		return REQUESTS.computeIfAbsent(identity.cacheKey(), ignored -> startRequest(identity));
+	}
+
+	private static AssetRequest startRequest(PlayerIdentity identity) {
 		AssetRequest request = new AssetRequest();
 		Minecraft minecraft = Minecraft.getInstance();
 
 		CompletableFuture
-				.supplyAsync(() -> resolveProfile(minecraft, username))
-				.thenCompose(profile -> getPlayerSkin(minecraft, profile))
+				.supplyAsync(() -> resolveProfile(minecraft, identity))
+				.thenCompose(profile -> {
+					request.resolvedUsername = profile.name();
+					return getPlayerSkin(minecraft, profile);
+				})
 				.thenAccept(playerSkin -> {
 					request.playerSkin = playerSkin;
 					request.state = RequestState.READY;
 				})
 				.exceptionally(error -> {
 					request.state = RequestState.FAILED;
-					PlayerSkinExtensionETF.LOGGER.warn("Could not load Minecraft assets for '{}'", username, error);
+					PlayerSkinExtensionETF.LOGGER.warn("Could not load Minecraft assets for '{}'", identity.reference(), error);
 					return null;
 				});
 
 		return request;
 	}
 
-	private static GameProfile resolveProfile(Minecraft minecraft, String username) {
+	private static GameProfile resolveProfile(Minecraft minecraft, PlayerIdentity identity) {
+		if (identity.isUuid()) {
+			return resolveUuidProfile(minecraft, identity.uuid());
+		}
+
+		String username = identity.reference();
 		Optional<com.mojang.authlib.yggdrasil.response.NameAndId> cachedProfile = minecraft.services().profileRepository().findProfileByName(username);
 		GameProfile profile = cachedProfile
 				.map(value -> new GameProfile(value.id(), value.name()))
@@ -89,6 +122,21 @@ public final class PlayerAssetTextureCache {
 		}
 
 		return profile;
+	}
+
+	private static GameProfile resolveUuidProfile(Minecraft minecraft, UUID uuid) {
+		if (minecraft.getConnection() != null) {
+			PlayerInfo playerInfo = minecraft.getConnection().getPlayerInfo(uuid);
+			if (playerInfo != null) {
+				return playerInfo.getProfile();
+			}
+		}
+
+		com.mojang.authlib.yggdrasil.ProfileResult fullProfile = minecraft.services().sessionService().fetchProfile(uuid, true);
+		if (fullProfile == null) {
+			throw new IllegalArgumentException("No Minecraft profile found for UUID " + uuid);
+		}
+		return fullProfile.profile();
 	}
 
 	private static GameProfile fetchProfileFromMojang(String username) {
@@ -127,10 +175,6 @@ public final class PlayerAssetTextureCache {
 				.thenApply(skin -> skin.orElseGet(() -> DefaultPlayerSkin.get(gameProfile)));
 	}
 
-	private static String cacheKey(String username) {
-		return username.toLowerCase(Locale.ROOT);
-	}
-
 	private enum RequestState {
 		LOADING,
 		READY,
@@ -139,6 +183,7 @@ public final class PlayerAssetTextureCache {
 
 	private static final class AssetRequest {
 		private volatile RequestState state = RequestState.LOADING;
+		private volatile String resolvedUsername;
 		private volatile PlayerSkin playerSkin;
 	}
 }

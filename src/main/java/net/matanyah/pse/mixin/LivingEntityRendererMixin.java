@@ -1,6 +1,7 @@
 package net.matanyah.pse.mixin;
 
 import net.matanyah.pse.PlayerSkinRenderContext;
+import net.matanyah.pse.PlayerAssetTextureCache;
 import net.matanyah.pse.PlayerSkinToken;
 import net.matanyah.pse.PlayerSkinTokenState;
 import net.matanyah.pse.RawCustomNameAccess;
@@ -25,6 +26,7 @@ public abstract class LivingEntityRendererMixin {
 		PlayerSkinTokenState tokenState = (PlayerSkinTokenState) state;
 		tokenState.pse_etf$setPlayerSkinToken(null);
 		tokenState.pse_etf$setPlayerSkinEntity(entity);
+		tokenState.pse_etf$setShoulderOwner(null);
 		tokenState.pse_etf$setHiddenFlags(java.util.List.of());
 
 		Component customName = entity instanceof RawCustomNameAccess access
@@ -41,7 +43,10 @@ public abstract class LivingEntityRendererMixin {
 		token.ifPresent(value -> {
 			tokenState.pse_etf$setPlayerSkinToken(value);
 			if (state.nameTag != null) {
-				state.nameTag = Component.literal(value.displayName());
+				state.nameTag = Component.literal(PlayerSkinToken.formatDisplayName(
+						rawName,
+						PlayerAssetTextureCache::getResolvedUsername
+				));
 			}
 		});
 

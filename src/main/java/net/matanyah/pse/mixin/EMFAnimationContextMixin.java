@@ -3,6 +3,7 @@ package net.matanyah.pse.mixin;
 import net.matanyah.pse.ETFTextureVariantResolver;
 import net.matanyah.pse.PlayerAssetTextureCache;
 import net.matanyah.pse.PlayerNameResolver;
+import net.matanyah.pse.PlayerIdentity;
 import net.matanyah.pse.PlayerSkinTokenState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -32,23 +33,28 @@ public abstract class EMFAnimationContextMixin {
 		if (!(entityState instanceof PlayerSkinTokenState tokenState)) return;
 
 		Entity entity = tokenState.pse_etf$getPlayerSkinEntity();
-		if (entity == null) return;
+		PlayerIdentity shoulderOwner = tokenState.pse_etf$getShoulderOwner();
+		if (entity == null && shoulderOwner == null) return;
 
 		// EMF can ask for a render layer outside the thread-local window used by the
 		// regular model hooks, so resolve the ETF-selected variant directly from the entity.
-		ETFTextureVariantResolver.Resolution resolution = ETFTextureVariantResolver.resolveDetailed(texture, entity);
+		ETFTextureVariantResolver.Resolution resolution = ETFTextureVariantResolver.resolveDetailed(texture, entityState);
 		Identifier selectedTexture = resolution.selectedTexture();
-		String username = PlayerNameResolver.resolve(
-				entity,
-				resolution.flags().nameSource(),
-				resolution.flags().nameSlot()
-		).orElse(null);
-		boolean inject = resolution.flags().dynamic() && resolution.flags().assetType() != null && username != null;
-		ETFTextureVariantResolver.logResolution(entity, texture, resolution, inject);
+		PlayerIdentity identity = shoulderOwner != null && PlayerNameResolver.usesNbtOwner(resolution.flags().nameSource())
+				? shoulderOwner
+				: PlayerNameResolver.resolve(
+						entity,
+						resolution.flags().nameSource(),
+						resolution.flags().nameSlot()
+				).orElse(null);
+		boolean inject = resolution.flags().dynamic() && resolution.flags().assetType() != null && identity != null;
+		if (entity != null) {
+			ETFTextureVariantResolver.logResolution(entity, texture, resolution, inject);
+		}
 		if (!inject) return;
 
 		cir.setReturnValue(RenderTypes.entityCutout(
-				PlayerAssetTextureCache.getTexture(username, resolution.flags().assetType(), selectedTexture)
+				PlayerAssetTextureCache.getTexture(identity, resolution.flags().assetType(), selectedTexture)
 		));
 	}
 }

@@ -58,7 +58,7 @@ player_asset.1=skin
 |-----|-------|-----------|---------|
 | `skins.1` or `textures.1` | `dynamic` | Yes | Opts this slot into dynamic player asset lookup |
 | `player_asset.1` | `skin` / `cape` / `elytra` | Yes* | Chooses which player asset to inject into this slot |
-| `name_source.1` | `token` / `nbt:<field>` / `static:<username>` / `self` | No | Chooses where the username comes from; defaults to `token` |
+| `name_source.1` | `token` / `nbt:<path>` / `static:<player>` / `self` | No | Chooses where the username or UUID comes from; defaults to `token` |
 | `name_slot.1` | Positive integer | No | Chooses the 1-based token when `name_source` is `token`; defaults to `1` |
 
 Dynamic replacement requires `skins.X=dynamic` (or `textures.X=dynamic`) plus an asset selector. The preferred selector is `player_asset.X`; legacy `player.X=true` can be used instead and selects `skin`. `name_source.X` and `name_slot.X` are optional, defaulting to `token` and `1` respectively.
@@ -74,23 +74,29 @@ player.1=true
 
 ### Player name sources
 
-By default, a dynamic slot uses the first `$Username$` token in the entity's custom name. The source can be changed independently for each rule:
+By default, a dynamic slot uses the first `$Username$` or `$UUID$` token in the entity's custom name. The source can be changed independently for each rule:
 
 ```properties
 # Default behavior
 name_source.1=token
 
-# Read a username from a top-level string field in the entity's client-visible NBT
+# Read a username or UUID from the entity's client-visible NBT
 name_source.1=nbt:Owner
 
-# Always load one player's assets
+# Always load one player's assets by username or UUID
 name_source.1=static:Notch
 
 # Load the local player's assets
 name_source.1=self
 ```
 
-The resolved value must be a valid Minecraft username (3-16 letters, digits, or underscores). If the configured source is unavailable or invalid, the selected fallback texture is left unchanged. NBT fields must be present in the entity data available to the client; server-only NBT cannot be read by a client-side resource pack mod.
+Player references may be valid Minecraft usernames (3-16 letters, digits, or underscores), dashed UUIDs, or 32-character undashed UUIDs. UUID references resolve through the player's current profile, so they continue working after username changes. UUID tokens are replaced by the current username in the rendered name tag once the profile lookup finishes; the raw UUID is never shown there.
+
+NBT lookup accepts dotted paths such as `nbt:data.Owner`. A simple path such as `nbt:Owner` checks the top-level field first, then automatically checks `data.Owner` for Minecraft 26.1 custom entity data. UUID int arrays, including the `Owner` field written by tameable animals such as parrots, are supported in addition to string values.
+
+Shoulder parrots are also supported. Minecraft retains only the parrot variant after it moves onto a shoulder, so PSE carries the shoulder player's stable profile identity into the deferred parrot render as the effective `Owner` value.
+
+If the configured source is unavailable or invalid, the selected fallback texture is left unchanged. NBT values must be present in entity data available to the client; server-only custom NBT cannot be read by a client-side resource pack mod.
 
 ETF rule matching is unchanged. Keys such as `name.X`, `nbt.X`, and `biomes.X` still determine whether the rule matches. `name_source.X` is consulted only after ETF selects a dynamic rule.
 
@@ -193,12 +199,14 @@ assets/
 
 | Pattern | Result |
 |---------|--------|
-| `$Steve$` | Displays Steve's skin; name tag hidden |
+| `$Steve$` | Displays Steve's skin; rendered name tag shows `Steve` |
+| `$8667ba71-b85a-4004-af54-457a9734eed7$` | Resolves the UUID's current profile and displays its assets |
 | `Nightpack$Notch$` | Displays Notch's skin; name tag shows `Nightpack` |
 | `My Stand $Alex$` | Displays Alex's skin; name tag shows `My Stand` |
 | `$Steve$ builder -slim -cape` | Displays Steve's selected player assets; name tag shows `Steve builder` |
 
-- Username must be **3–16 characters**, letters, digits, or underscores (`A-Za-z0-9_`)
+- Usernames must be **3–16 characters**, letters, digits, or underscores (`A-Za-z0-9_`)
+- UUIDs may use standard dashed form or 32-character undashed form
 - The token must be surrounded by `$` on both sides
 - Case-sensitive for skin lookup (matches Mojang's username exactly)
 
